@@ -4,3 +4,4 @@ __pycache__/
 lambda_layers/python/
 lambda_layers/*.zip
 **/result.json
+**.DS_Store
