@@ -46,6 +46,8 @@ class AppartmentsSpider(scrapy.Spider):
         id = response.css('input#homesters-ofertaID::attr(value)').get()
         characteristics_dic['id'] = id
 
+        characteristics_dic['url'] = response.request.url
+
         price = response.xpath('//div[@class="pret first blue"]/text()').extract()[0]
         characteristics_dic['price'] = price
         
@@ -57,8 +59,20 @@ class AppartmentsSpider(scrapy.Spider):
 
         yield characteristics_dic
 
+def fix_json(filename, today):
+    f = open(filename, 'r')
+    contents = f.readlines()
+    f.close()
+
+    contents.insert(0, "{\""+today+"\":")
+    contents.append("}")
+    f = open(filename, 'w')
+    f.writelines(contents)
+    f.close()
+
 def lambda_handler(event, context):
     location = '/tmp/result.json'
+    today = date.today().strftime('%Y%m%d')
 
     process = CrawlerProcess({
         'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)',
@@ -69,9 +83,11 @@ def lambda_handler(event, context):
     process.crawl(AppartmentsSpider)
     process.start() # the script will block here until the crawling is finished
 
+    fix_json(location, today)
+
     data = open(location, 'rb')
     #print(data)
-    s3.put_object(Bucket='andrei-housing-prices', Key=date.today().strftime('%Y%m%d'), Body=data)
+    s3.put_object(Bucket='andrei-housing-prices', Key=today, Body=data)
     print('All done.')
 
 if __name__ == "__main__":
