@@ -5,6 +5,24 @@ from scrapy.crawler import CrawlerProcess
 
 s3 = boto3.client('s3')
 
+characteristics = [
+    "Nr. camere",
+    "Suprafaţă utilă",
+    "Suprafaţă utilă totală",
+    "Suprafaţă construită",
+    "Compartimentare",
+    "Confort",
+    "Etaj",
+    "Nr. bucătării",
+    "Nr. băi",
+    "An construcţie",
+    "Structură rezistenţă",
+    "Tip imobil",
+    "Regim înălţime",
+    "Nr. balcoane"
+]
+
+
 class AppartmentsSpider(scrapy.Spider):
     name = "appartments"
 
@@ -16,29 +34,28 @@ class AppartmentsSpider(scrapy.Spider):
         for appartment in response.css('a.img-block'):
             appartment_page = appartment.css('a::attr(href)').get()
             yield scrapy.Request(appartment_page, callback=self.parse_appartment_page)
-            break
+            #break
+
+        next_page = response.xpath('//link[@rel="next"]/@href').get()
+        if next_page is not None:
+            yield scrapy.Request(next_page, callback=self.parse)
 
     def parse_appartment_page(self, response):
+        characteristics_dic = {}
+
+        id = response.css('input#homesters-ofertaID::attr(value)').get()
+        characteristics_dic['id'] = id
+
         price = response.xpath('//div[@class="pret first blue"]/text()').extract()[0]
-        characteristics = response.css('div#b_detalii_caracteristici')
-        #if characteristics:
-        #    print("## " + characteristics.get())
-        yield {
-            'number_of_rooms': characteristics.css('li')[0].css('span::text').get(),
-            'usable_surface': characteristics.css('li')[1].css('span::text').get(),
-            'total_surface': characteristics.css('li')[2].css('span::text').get(),
-            'partitioning': characteristics.css('li')[3].css('span::text').get(),
-            'confort': characteristics.css('li')[4].css('span::text').get(),
-            'floor': characteristics.css('li')[5].css('span::text').get(),
-            'number_of_kitchens': characteristics.css('li')[6].css('span::text').get(),
-            'number_of_bathrooms': characteristics.css('li')[7].css('span::text').get(),
-            'year_of_construction': characteristics.css('li')[8].css('span::text').get(),
-            'structure': characteristics.css('li')[9].css('span::text').get(),
-            'building_type': characteristics.css('li')[10].css('span::text').get(),
-            'height': characteristics.css('li')[11].css('span::text').get(),
-            'number_of_balconies': characteristics.css('li')[12].css('span::text').get(),
-            #'preturi': preturi
-        }
+        characteristics_dic['price'] = price
+        
+        app_characteristics = response.css('div#b_detalii_caracteristici').css('li')
+        for app_characteristic in app_characteristics:
+            for characteristic in characteristics:
+                if characteristic in app_characteristic.get():
+                    characteristics_dic[characteristic] = app_characteristic.css('span::text').get()
+
+        yield characteristics_dic
 
 def lambda_handler(event, context):
     location = '/tmp/result.json'
