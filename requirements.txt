@@ -2,3 +2,4 @@ Scrapy
 aws
 boto3
 lxml
+pandas
