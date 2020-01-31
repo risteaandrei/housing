@@ -86,33 +86,29 @@ def create_all_time_inventory_df():
 
     alltime_df = pd.read_csv(inventory_key, index_col=0, sep='\t')
     alltime_df['active'] = True
-    #print(alltime_df)
 
     for i in range(20200107, 20200130):
-        print('## ' + str(i))
         key = str(i)
         object = s3.get_object(Bucket='andrei-housing-prices', Key=key)
         data = object['Body'].read().decode('utf-8')
         current_df = create_inventory_df(data, key)
-        #print(current_df)
 
         alltime_df['active'] = False
         for index, row in current_df.iterrows():
-            #print(row)
-            #print('##')
-            #print(alltime_df.loc[index[0]])
-            #print(row)
             alltime_df.loc[index[0]] = row
             alltime_df.loc[index[0], 'active'] = True
-            #break
 
     alltime_df.to_csv(inventory_key, sep='\t')
     data = open(inventory_key, 'rb')
     s3.put_object(Bucket='andrei-housing-prices', Key=inventory_key, Body=data)
 
+def upload_to_s3(file_path):
+    data = open(file_path, 'rb')
+    s3.put_object(Bucket='andrei-housing-prices', Key=inventory_key, Body=data)
+
 def lambda_handler(event, context):
-    #key = event['Records'][0]['s3']['object']['key']
-    key = '20200118'
+    key = event['Records'][0]['s3']['object']['key']
+    #key = '20200118'
     object = s3.get_object(Bucket='andrei-housing-prices', Key=key)
     data = object['Body'].read().decode('utf-8')
     today_df = create_inventory_df(data, key)
@@ -121,25 +117,15 @@ def lambda_handler(event, context):
     data = object['Body'].read().decode('utf-8')
     data_io = StringIO(data)
     alltime_df = pd.read_csv(data_io, index_col=0, sep='\t')
-    #print(alltime_df)
 
     alltime_df['active'] = False
     for index, row in today_df.iterrows():
-        #print(row)
-        #print('##')
-        #print(alltime_df.loc[index[0]])
-        #print(row)
         alltime_df.loc[index[0]] = row
         alltime_df.loc[index[0], 'active'] = True
-        break
 
     file_path = '/tmp/all_time.csv'
     alltime_df.to_csv(file_path, sep='\t')
-    #upload_to_s3(file_path)
-
-def upload_to_s3(file_path):
-    data = open(file_path, 'rb')
-    s3.put_object(Bucket='andrei-housing-prices', Key=inventory_key, Body=data)
+    upload_to_s3(file_path)
 
 if __name__ == "__main__":
     create_all_time_inventory_df()
