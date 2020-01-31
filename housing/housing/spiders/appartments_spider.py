@@ -43,14 +43,14 @@ class AppartmentsSpider(scrapy.Spider):
     def parse_appartment_page(self, response):
         characteristics_dic = {}
 
-        id = response.css('input#homesters-ofertaID::attr(value)').get()
+        id = response.xpath('//li[@class="identificator-oferta"]/text()').get()
         characteristics_dic['id'] = id
 
         characteristics_dic['url'] = response.request.url
 
         price = response.xpath('//div[@class="pret first blue"]/text()').extract()[0]
         characteristics_dic['price'] = price
-        
+
         app_characteristics = response.css('div#b_detalii_caracteristici').css('li')
         for app_characteristic in app_characteristics:
             for characteristic in characteristics:
