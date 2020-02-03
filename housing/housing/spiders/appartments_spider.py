@@ -4,6 +4,8 @@ from datetime import date
 from scrapy.crawler import CrawlerProcess
 
 s3 = boto3.client('s3')
+local_path = 'file:///Users/Andrei/dev/housing/housing/housing/spiders/'
+local_run = 'false'
 
 characteristics = [
     "Nr. camere",
@@ -26,13 +28,15 @@ characteristics = [
 class AppartmentsSpider(scrapy.Spider):
     name = "appartments"
 
-    start_urls = [
-        'https://www.imobiliare.ro/vanzare-apartamente/craiova',
-    ]
+    if local_run:
+        start_urls = [local_path + 'main_page.html']
+    else:
+        start_urls = ['https://www.imobiliare.ro/vanzare-apartamente/craiova']
+        local_path = ''
 
     def parse(self, response):
         for appartment in response.css('a.img-block'):
-            appartment_page = appartment.css('a::attr(href)').get()
+            appartment_page = local_path + appartment.css('a::attr(href)').get()
             yield scrapy.Request(appartment_page, callback=self.parse_appartment_page)
             #break
 
@@ -50,6 +54,9 @@ class AppartmentsSpider(scrapy.Spider):
 
         price = response.xpath('//div[@class="pret first blue"]/text()').extract()[0]
         characteristics_dic['price'] = price
+
+        neighborhood = response.xpath('//a[@href="#zona"]/span/text()').get()
+        characteristics_dic['neighborhood'] = neighborhood
 
         app_characteristics = response.css('div#b_detalii_caracteristici').css('li')
         for app_characteristic in app_characteristics:
@@ -86,9 +93,13 @@ def lambda_handler(event, context):
     fix_json(location, today)
 
     data = open(location, 'rb')
-    #print(data)
-    s3.put_object(Bucket='andrei-housing-prices', Key=today, Body=data)
+    if local_run:
+        print(data)
+    else:
+        s3.put_object(Bucket='andrei-housing-prices', Key=today, Body=data)
     print('All done.')
 
 if __name__ == "__main__":
+    local_run = True
     lambda_handler('', '')
+
