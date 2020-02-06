@@ -41,9 +41,10 @@ def create_prices_df():
     s3.put_object(Bucket='andrei-housing-prices', Key=price_history_key, Body=data)
 
 def lambda_handler(event, context):
+    s3_event = event['Records'][0]['Sns']['Message']
+    s3_json = json.loads(s3_event)
+    key = s3_json['Records'][0]['s3']['object']['key']
 
-    key = event['Records'][0]['s3']['object']['key']
-    #key = '20200118'
     object = s3.get_object(Bucket='andrei-housing-prices', Key=key)
     data = object['Body'].read().decode('utf-8')
     today_df = create_df_from_prices(data, key)
