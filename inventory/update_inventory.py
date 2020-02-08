@@ -1,6 +1,7 @@
 from io import StringIO
 
 import boto3
+import datetime
 import json
 import pandas as pd
 import re
@@ -8,23 +9,24 @@ import re
 s3 = boto3.client('s3')
 inventory_key = 'inventory'
 
-characteristics = dict([
-    ("url", "url"),
-    ("price", "price"),
-    ("rooms", "Nr. camere"),
-    ("usable_surface", "Suprafaţă utilă"),
-    ("total_surface", "Suprafaţă utilă totală"),
-    ("built_surface", "Suprafaţă construită"),
-    ("partitioning", "Compartimentare"),
-    ("confort", "Confort"),
-    ("floor", "Etaj"),
-    ("kitchens", "Nr. bucătării"),
-    ("bathrooms", "Nr. băi"),
-    ("year", "An construcţie"),
-    ("building_structure", "Structură rezistenţă"),
-    ("building_type", "Tip imobil"),
-    ("building_height", "Regim înălţime"),
-    ("balconies", "Nr. balcoane")
+characteristics = dict(
+    [ ("url", "url")
+    , ("price", "price")
+    , ("rooms", "Nr. camere")
+    , ("usable_surface", "Suprafaţă utilă")
+    , ("total_surface", "Suprafaţă utilă totală")
+    , ("built_surface", "Suprafaţă construită")
+    , ("partitioning", "Compartimentare")
+    , ("confort", "Confort")
+    , ("floor", "Etaj")
+    , ("kitchens", "Nr. bucătării")
+    , ("bathrooms", "Nr. băi")
+    , ("year", "An construcţie")
+    , ("building_structure", "Structură rezistenţă")
+    , ("building_type", "Tip imobil")
+    , ("building_height", "Regim înălţime")
+    , ("balconies", "Nr. balcoane")
+    , ("neighborhood", "neighborhood")
 ])
 
 def first_number_in_str(str):
@@ -107,8 +109,10 @@ def upload_to_s3(file_path):
     s3.put_object(Bucket='andrei-housing-prices', Key=inventory_key, Body=data)
 
 def lambda_handler(event, context):
-    key = event['Records'][0]['s3']['object']['key']
-    #key = '20200118'
+    s3_event = event['Records'][0]['Sns']['Message']
+    s3_json = json.loads(s3_event)
+    key = s3_json['Records'][0]['s3']['object']['key']
+
     object = s3.get_object(Bucket='andrei-housing-prices', Key=key)
     data = object['Body'].read().decode('utf-8')
     today_df = create_inventory_df(data, key)
@@ -127,5 +131,42 @@ def lambda_handler(event, context):
     alltime_df.to_csv(file_path, sep='\t')
     upload_to_s3(file_path)
 
+def process_daily_files(start, end, f):
+    for i in range((end - start).days + 1):
+        f((start + datetime.timedelta(days=i)).strftime('%Y%m%d'), inventory_key)
+        #break
+
+def update_df(current_key, inventory_key):
+    upload_to_s3(inventory_key)
+    return
+    print("Updating for " + current_key)
+
+    object = s3.get_object(Bucket='andrei-housing-prices', Key=current_key)
+    current_data = object['Body'].read().decode('utf-8')
+    current_df = create_inventory_df(current_data, current_key)
+
+    try:
+        object = s3.get_object(Bucket='andrei-housing-prices', Key=inventory_key)
+    except:
+        current_df.to_csv(inventory_key, sep='\t')
+        upload_to_s3(inventory_key)
+        return
+
+    inventory_data = object['Body'].read().decode('utf-8')
+    inventory_data_io = StringIO(inventory_data)
+    inventory_df = pd.read_csv(inventory_data_io, index_col=0, sep='\t')
+    inventory_df['neighborhood'] = ''
+
+    inventory_df['active'] = False
+    for index, row in current_df.iterrows():
+        inventory_df.loc[index[0]] = row
+        inventory_df.loc[index[0], 'active'] = True
+        #print(inventory_df.loc[index[0]])
+        #break
+    
+    inventory_df.to_csv(inventory_key, sep='\t')
+    #upload_to_s3(inventory_key)
+
 if __name__ == "__main__":
-    create_all_time_inventory_df()
+    #create_all_time_inventory_df()
+    process_daily_files(datetime.datetime(2020, 2, 8), datetime.datetime.now(), update_df)
