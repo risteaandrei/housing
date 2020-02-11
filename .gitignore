@@ -3,5 +3,7 @@ venv/
 __pycache__/
 lambda_layers/python/
 lambda_layers/*.zip
+data/*
+!data/.foo
 **/result.json
 **.DS_Store
