@@ -1,30 +1,37 @@
 from io import StringIO
 
 import boto3
+import datetime
 import json
 import pandas as pd
 import re
 
+import sys
+sys.path.append('tools')
+from housing_common import *
+
 s3 = boto3.client('s3')
 inventory_key = 'inventory'
+new_key = 'new_today'
 
-characteristics = dict([
-    ("url", "url"),
-    ("price", "price"),
-    ("rooms", "Nr. camere"),
-    ("usable_surface", "Suprafaţă utilă"),
-    ("total_surface", "Suprafaţă utilă totală"),
-    ("built_surface", "Suprafaţă construită"),
-    ("partitioning", "Compartimentare"),
-    ("confort", "Confort"),
-    ("floor", "Etaj"),
-    ("kitchens", "Nr. bucătării"),
-    ("bathrooms", "Nr. băi"),
-    ("year", "An construcţie"),
-    ("building_structure", "Structură rezistenţă"),
-    ("building_type", "Tip imobil"),
-    ("building_height", "Regim înălţime"),
-    ("balconies", "Nr. balcoane")
+characteristics = dict(
+    [ ("url", "url")
+    , ("price", "price")
+    , ("rooms", "Nr. camere")
+    , ("usable_surface", "Suprafaţă utilă")
+    , ("total_surface", "Suprafaţă utilă totală")
+    , ("built_surface", "Suprafaţă construită")
+    , ("partitioning", "Compartimentare")
+    , ("confort", "Confort")
+    , ("floor", "Etaj")
+    , ("kitchens", "Nr. bucătării")
+    , ("bathrooms", "Nr. băi")
+    , ("year", "An construcţie")
+    , ("building_structure", "Structură rezistenţă")
+    , ("building_type", "Tip imobil")
+    , ("building_height", "Regim înălţime")
+    , ("balconies", "Nr. balcoane")
+    , ("neighborhood", "neighborhood")
 ])
 
 def first_number_in_str(str):
@@ -64,8 +71,7 @@ def create_inventory_df(data, key):
     for k in characteristics:
         columns[k] = []
 
-    json_data = json.loads(data)
-    for ap in json_data[key]:
+    for ap in data[key]:
         id.append(ap['id'])
 
         for k, v in characteristics.items():
@@ -77,55 +83,28 @@ def create_inventory_df(data, key):
     df = pd.DataFrame(columns, index=[id])
     return df
 
-def create_all_time_inventory_df():
-    key = "20200106"
-    object = s3.get_object(Bucket='andrei-housing-prices', Key=key)
-    data = object['Body'].read().decode('utf-8')
-    first_df = create_inventory_df(data, key)
-    first_df.to_csv(inventory_key, sep='\t')
-
-    alltime_df = pd.read_csv(inventory_key, index_col=0, sep='\t')
-    alltime_df['active'] = True
-
-    for i in range(20200107, 20200130):
-        key = str(i)
-        object = s3.get_object(Bucket='andrei-housing-prices', Key=key)
-        data = object['Body'].read().decode('utf-8')
-        current_df = create_inventory_df(data, key)
-
-        alltime_df['active'] = False
-        for index, row in current_df.iterrows():
-            alltime_df.loc[index[0]] = row
-            alltime_df.loc[index[0], 'active'] = True
-
-    alltime_df.to_csv(inventory_key, sep='\t')
-    data = open(inventory_key, 'rb')
-    s3.put_object(Bucket='andrei-housing-prices', Key=inventory_key, Body=data)
-
-def upload_to_s3(file_path):
-    data = open(file_path, 'rb')
-    s3.put_object(Bucket='andrei-housing-prices', Key=inventory_key, Body=data)
-
 def lambda_handler(event, context):
-    key = event['Records'][0]['s3']['object']['key']
-    #key = '20200118'
-    object = s3.get_object(Bucket='andrei-housing-prices', Key=key)
-    data = object['Body'].read().decode('utf-8')
-    today_df = create_inventory_df(data, key)
+    execute(key_from_sns_from_s3_put(event))
 
-    object = s3.get_object(Bucket='andrei-housing-prices', Key=inventory_key)
-    data = object['Body'].read().decode('utf-8')
-    data_io = StringIO(data)
-    alltime_df = pd.read_csv(data_io, index_col=0, sep='\t')
+def execute(key, local=False):
+    today_json = load_json(key, local)
+    today_df = create_inventory_df(today_json, key)
 
-    alltime_df['active'] = False
+    inventory_df = load_df(inventory_key, local)
+
+    new_df = pd.DataFrame(columns=inventory_df.columns)
+
+    inventory_df['active'] = False
     for index, row in today_df.iterrows():
-        alltime_df.loc[index[0]] = row
-        alltime_df.loc[index[0], 'active'] = True
+        if index[0] not in inventory_df.index:
+            new_df.loc[index[0]] = row
 
-    file_path = '/tmp/all_time.csv'
-    alltime_df.to_csv(file_path, sep='\t')
-    upload_to_s3(file_path)
+        inventory_df.loc[index[0]] = row
+        inventory_df.loc[index[0], 'active'] = True
+    
+    save_df(inventory_df, inventory_key, local)
+    save_df(new_df, new_key, local)
 
 if __name__ == "__main__":
-    create_all_time_inventory_df()
+    #sync_local_with_s3()
+    execute('20200214', True)
