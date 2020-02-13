@@ -5,5 +5,7 @@ lambda_layers/python/
 lambda_layers/*.zip
 data/*
 !data/.foo
+output/*
+!output/.foo
 **/result.json
 **.DS_Store
