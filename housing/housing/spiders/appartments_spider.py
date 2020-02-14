@@ -97,7 +97,6 @@ def lambda_handler(event, context):
         print(data)
     else:
         s3.put_object(Bucket='andrei-housing-prices', Key=today, Body=data)
-    print('All done.')
 
 if __name__ == "__main__":
     local_run = True
