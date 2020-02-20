@@ -103,11 +103,12 @@ def execute(key, local=False):
         inventory_df.loc[index[0], 'active'] = True
 
     save_df(inventory_df, inventory_key, local)
-    save_df(new_df, new_key, local)
+    if len(new_df.index) > 0:
+        save_df(new_df, new_key, local)
 
 if __name__ == "__main__":
-    #execute(date_str(today()))
+    #sync_local_with_s3()
+    execute(date_str(today()))
     #upload_to_s3(inventory_key, data_dir)
     #upload_to_s3(date_str(today()), data_dir)
-    sync_local_with_s3()
     #upload_to_s3('price_history', data_dir)
