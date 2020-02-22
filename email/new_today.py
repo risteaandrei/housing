@@ -44,7 +44,6 @@ def execute(local=False):
 
     ROWS_HTML = ""
     for index, row in df.iterrows():
-        price_per_sqm = round(row['price'] / row['usable_surface'])
         ROWS_HTML += '<tr>' \
             + '<td>' + '<a href="' + row['url'] + '">link</a>' + '</td>' \
             + '<td>' + str(row['price']) + '</td>' \
@@ -53,12 +52,11 @@ def execute(local=False):
             + '<td>' + str(row['rooms']) + '</td>' \
             + '<td>' + row['neighborhood'] + '</td>' \
             + '<td>' + row['partitioning'] + '</td>' \
-            + '<td>' + str(row['floor']) + ' / ' + row['building_height'] + '</td>' \
+            + '<td>' + str(row['floor']) + ' / ' + str(row['building_height']) + '</td>' \
             + '<td>' + str(round(row['year'])) + '</td>' \
             + '</tr>'
 
     BODY_HTML = HEADER_HTML + ROWS_HTML + FOOTER_HTML
-    string_to_file(BODY_HTML, "email.html", local)
 
     try:
         response = client.send_email(
@@ -89,4 +87,5 @@ def execute(local=False):
         print(response['MessageId'])
 
 if __name__ == "__main__":
+    sync_local_with_s3()
     execute(True)
