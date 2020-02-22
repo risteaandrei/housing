@@ -18,11 +18,7 @@ def key_from_sns_from_s3_put(event):
     s3_json = json.loads(event['Records'][0]['Sns']['Message'])
     return key_from_s3_put(s3_json)
 
-def string_to_file(data, filename, local=False):
-    if local:
-        location = output_dir
-    else:
-        location = tmp_dir
+def string_to_file(data, filename, location=''):
     text_file = open(location + filename, 'w')
     text_file.write(data)
 
@@ -36,7 +32,7 @@ def s3_get(key):
     return data
 
 def download_from_s3(key, local=False):
-    string_to_file(s3_get(key), key, local)
+    string_to_file(s3_get(key), key, data_dir)
 
 def s3_put(key, data):
     s3.put_object(Bucket='andrei-housing-prices', Key=key, Body=data)
@@ -118,3 +114,4 @@ def sync_local_with_s3():
 
 if __name__ == "__main__":
     sync_local_with_s3()
+    upload_to_s3('new_today', data_dir)
