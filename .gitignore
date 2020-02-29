@@ -7,5 +7,7 @@ data/*
 !data/.foo
 output/*
 !output/.foo
+common/*
+!common/.foo
 **/result.json
 **.DS_Store
