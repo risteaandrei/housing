@@ -31,8 +31,8 @@ def s3_get(key):
     data = object['Body'].read().decode('utf-8')
     return data
 
-def download_from_s3(key, local=False):
-    string_to_file(s3_get(key), key, data_dir)
+def download_from_s3(key, location=''):
+    string_to_file(s3_get(key), key, location)
 
 def s3_put(key, data):
     s3.put_object(Bucket='andrei-housing-prices', Key=key, Body=data)
@@ -79,7 +79,7 @@ def df_from_s3(key):
 
 def df_to_s3(df, key):
     df_to_file(df, key, tmp_dir)
-    upload_to_s3(key, tmp_dir)
+    s3_put(key, string_from_file(tmp_dir + key))
 
 def load_df(key, local=False):
     if local:
@@ -98,20 +98,16 @@ def save_df(data, key, local=False):
 def today():
     return datetime.date.today()
 
-def date_str(date):
+def date_to_str(date):
     return date.strftime('%Y%m%d')
 
 def sync_local_with_s3():
     day_delta = datetime.timedelta(days=1)
     for i in range((today() - first_scraping_day).days + 1):
-        current_str = date_str(first_scraping_day + i * day_delta)
+        current_str = date_to_str(first_scraping_day + i * day_delta)
         if not os.path.exists(data_dir + current_str):
-            download_from_s3(current_str, True)
+            download_from_s3(current_str, data_dir)
 
-    download_from_s3('price_history', True)
-    download_from_s3('inventory', True)
-    download_from_s3('new_today', True)
-
-if __name__ == "__main__":
-    sync_local_with_s3()
-    upload_to_s3('new_today', data_dir)
+    download_from_s3('price_history', data_dir)
+    download_from_s3('inventory', data_dir)
+    download_from_s3('new_today', data_dir)

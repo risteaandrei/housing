@@ -98,17 +98,20 @@ def execute(key, local=False):
     for index, row in today_df.iterrows():
         if index[0] not in inventory_df.index:
             new_df.loc[index[0]] = row
+            inventory_df.loc[index[0]] = row
+        else:
+            inventory_df.loc[index[0], 'price'] = row['price']
 
-        inventory_df.loc[index[0]] = row
         inventory_df.loc[index[0], 'active'] = True
+
 
     save_df(inventory_df, inventory_key, local)
     if len(new_df.index) > 0:
         save_df(new_df, new_key, local)
 
 if __name__ == "__main__":
-    #sync_local_with_s3()
-    execute(date_str(today()))
+    sync_local_with_s3()
+    execute(date_to_str(today()), local=True)
     #upload_to_s3(inventory_key, data_dir)
     #upload_to_s3(date_str(today()), data_dir)
     #upload_to_s3('price_history', data_dir)
