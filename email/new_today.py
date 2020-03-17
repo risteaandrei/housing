@@ -1,5 +1,6 @@
 import boto3
 from botocore.exceptions import ClientError
+import math
 
 import sys
 sys.path.append('tools')
@@ -44,16 +45,20 @@ def execute(local=False):
 
     ROWS_HTML = ""
     for index, row in df.iterrows():
+        price_per_surface = '' if math.isnan(row['price']) or math.isnan(row['usable_surface']) \
+                            else str(round(row['price'] / row['usable_surface']))
+        year = '' if math.isnan(row['year']) \
+               else str(round(row['year']))
         ROWS_HTML += '<tr>' \
             + '<td>' + '<a href="' + row['url'] + '">link</a>' + '</td>' \
             + '<td>' + str(row['price']) + '</td>' \
             + '<td>' + str(row['usable_surface']) + '</td>' \
-            + '<td>' + str(round(row['price'] / row['usable_surface'])) + '</td>' \
+            + '<td>' + price_per_surface + '</td>' \
             + '<td>' + str(row['rooms']) + '</td>' \
             + '<td>' + row['neighborhood'] + '</td>' \
             + '<td>' + row['partitioning'] + '</td>' \
             + '<td>' + str(row['floor']) + ' / ' + str(row['building_height']) + '</td>' \
-            + '<td>' + str(round(row['year'])) + '</td>' \
+            + '<td>' + year + '</td>' \
             + '</tr>'
 
     BODY_HTML = HEADER_HTML + ROWS_HTML + FOOTER_HTML
