@@ -5,6 +5,10 @@ lambda_layers/python/
 lambda_layers/*.zip
 data/*
 !data/.foo
+!data/20200214
+!data/inventory
+!data/new_today
+!data/price_history
 output/*
 !output/.foo
 common/*
